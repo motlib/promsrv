@@ -76,7 +76,7 @@ class Metric:
         return self._timeout
 
     @property
-    def with_update_counter(self) -> bool:
+    def has_update_counter(self) -> bool:
         """Returns true if this metric has an associated update counter metric."""
 
         return self._with_update_counter
@@ -123,7 +123,12 @@ class Metric:
         return inst.value
 
     def inc(self, labels: dict[str, str]) -> None:
-        """Increases the value of the metric instance by one."""
+        """Increases the value of the metric instance by one.
+
+        If the metric instance does not exist yet, the instance is created and
+        set to 0.
+
+        """
 
         val = self.get(labels)
 
@@ -231,15 +236,17 @@ class PrometheusExporter:
         timeout: float | None = None,
         with_update_counter: bool = False,
     ) -> None:
-        """Register a name for exporting. This must be called before calling
-        `set()`.
+        """Register a metric for exporting. This must be called before calling
+        `set(...)`.
 
-        :param str name: The name to register.
-        :param str type: One of gauge or counter.
-        :param str helpstr: The help information / comment to include in the
+        :param name: The name to register.
+        :param type: One of `gauge` or `counter`.
+        :param helpstr: The help information / comment to include in the
           output.
-        :param int timeout: Timeout in seconds for any value. Before rendering,
-          values which are updated longer ago than this value, are removed."""
+        :param float timeout: Timeout in seconds for any value. Before rendering,
+          values which are updated longer ago than this value, are removed.
+        :param with_update_counter: Create a secondard metric of `counter` type
+          which is increased every time this metric is updated."""
 
         with self._lock:
             if name in self._prom:
@@ -268,26 +275,26 @@ class PrometheusExporter:
     def set(self, name: str, labels: dict[str, str], value: float | None) -> None:
         """Set a value for exporting.
 
-        :param str name: The name of the value to set. This name must have been
+        :param name: The name of the value to set. This name must have been
           registered already by calling `register()`.
-        :param dict labels: The labels to attach to this name.
-        :param value: The value to set. Automatically converted to string.
-        :param fmt: The string format to use to convert value to a string.
-          Default: '{0}'."""
+        :param labels: The labels to attach to this name.
+        :param value: The value to set.
 
-        # We raise an exception if we do not know the metric name, i.e. if it
-        # was not registered
-        if name not in self._prom:
-            raise UnknownMeasurementException(
-                f"Cannot set not registered measurement '{name}'."
-            )
+        """
 
         with self._lock:
+        # We raise an exception if we do not know the metric name, i.e. if it
+        # was not registered
+            if name not in self._prom:
+                raise UnknownMeasurementException(
+                    f"Cannot set not registered measurement '{name}'."
+                )
+
             metric = self._prom[name]
 
             metric.set(labels, value)
 
-            if metric.with_update_counter:
+            if metric.has_update_counter:
                 counter = self._prom[f"{name}_updates"]
                 counter.inc(labels)
 
@@ -299,7 +306,11 @@ class PrometheusExporter:
                 metric.check_timeout()
 
     def render_iter(self) -> Iterator[str]:
-        """Return an iterator providing each line of Prometheus output."""
+        """Return an iterator returning lines of metric data in Prometheus format.
+
+        """
+
+        self.check_timeout()
 
         for metric in self._prom.values():
             yield from metric.render_iter()
@@ -310,7 +321,5 @@ class PrometheusExporter:
 
         :returns: String with output suitable for consumption by Prometheus over
           HTTP."""
-
-        self.check_timeout()
 
         return "\n".join(self.render_iter())
