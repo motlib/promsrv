@@ -8,11 +8,7 @@ from ..promexp import (
     PrometheusExporter, PrometheusExporterException, UnknownMeasurementException)
 
 
-# To be able to use fixtures
-# pylint: disable=redefined-outer-name
-
-
-def _has_line(promexp, line):
+def _has_line(promexp: PrometheusExporter, line: str) -> bool:
     '''Utility function to check if rendered output contains a specific line.'''
 
     out = promexp.render().split('\n')
@@ -20,14 +16,14 @@ def _has_line(promexp, line):
     return any(map(lambda l: l == line, out))
 
 
-@pytest.fixture
-def promexp():
+@pytest.fixture(name='promexp')
+def promexp_fixture() -> PrometheusExporter:
     '''Create a new prometheus exporter instance.'''
 
     return PrometheusExporter()
 
 
-def test_promqtt_register(promexp):
+def test_promqtt_register(promexp: PrometheusExporter) -> None:
     '''Register measurement and check that it's not yet in the output.'''
     promexp.register(
         name='test_meas_1',
@@ -43,7 +39,7 @@ def test_promqtt_register(promexp):
     assert not hasline
 
 
-def test_promqtt_register_twice(promexp):
+def test_promqtt_register_twice(promexp: PrometheusExporter) -> None:
     '''Double registration of a measurement raises an exception.'''
 
     promexp.register(
@@ -60,7 +56,7 @@ def test_promqtt_register_twice(promexp):
             timeout=12)
 
 
-def test_promqtt_set(promexp):
+def test_promqtt_set(promexp: PrometheusExporter) -> None:
     '''Setting a value to a registered measurement works fine.'''
 
     promexp.register(
@@ -83,7 +79,7 @@ def test_promqtt_set(promexp):
     assert _has_line(promexp, 'test_meas_1{foo="bar"} 12.3')
 
 
-def test_promqtt_unset(promexp):
+def test_promqtt_unset(promexp: PrometheusExporter) -> None:
     '''Setting a value of a registered metric to None removes it.'''
 
     promexp.register(
@@ -111,7 +107,7 @@ def test_promqtt_unset(promexp):
     assert not _has_line(promexp, 'test_meas_1{foo="bar"}')
 
 
-def test_promqtt_unset_new(promexp):
+def test_promqtt_unset_new(promexp: PrometheusExporter) -> None:
     '''Setting a value of a registered metric that was never set has no effect.'''
 
     promexp.register(
@@ -128,7 +124,7 @@ def test_promqtt_unset_new(promexp):
     assert not _has_line(promexp, 'test_meas_1{foo="bar"}')
 
 
-def test_promqtt_not_registered(promexp):
+def test_promqtt_not_registered(promexp: PrometheusExporter) -> None:
     '''Setting a value to a not registered measurement raises an exception.'''
 
     with pytest.raises(UnknownMeasurementException):
