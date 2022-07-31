@@ -1,3 +1,3 @@
-'''Prometheus serving metrics library'''
+"""Prometheus serving metrics library"""
 
 from .promexp import PrometheusExporter
