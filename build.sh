@@ -29,7 +29,11 @@ function _run_func {
 
 # Run pytest unit tests
 function pytest() {
-    ${VENV_CMD} pytest --verbose ${PACKAGES}
+    ${VENV_CMD} pytest \
+                --cov=promsrv \
+                --cov-report html:build/pytest-cov \
+                --verbose \
+                ${PACKAGES}
 }
 
 # Run mypy static code analysis
